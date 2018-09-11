@@ -34,18 +34,17 @@ class MLP(nn.Module):
         """
         super(MLP, self).__init__()
 
-        self.linear_layers = []
+        self.layers = nn.ModuleList()
         prev_n_units = n_inputs
         for n_units in n_hidden:
-            if len(self.linear_layers) == 0:
-                layer = nn.Linear(n_inputs, n_units)
+            if len(self.layers) == 0:
+                self.layers.append(nn.Linear(n_inputs, n_units))
             else:
-                layer = nn.Linear(prev_n_units, n_units)
+                self.layers.append(nn.Linear(prev_n_units, n_units))
 
             prev_n_units = n_units
-            self.linear_layers.append(layer)
 
-        self.final_layer = nn.Linear(prev_n_units, n_classes)
+        self.layers.append(nn.Linear(prev_n_units, n_classes))
 
     def forward(self, x):
         """
@@ -61,10 +60,10 @@ class MLP(nn.Module):
         Implement forward pass of the network.
         """
 
-        for layer in self.linear_layers:
-            x = layer(x)
-            x = F.relu(x)
+        for i, layer in enumerate(self.layers):
+            if i != (len(self.layers) - 1):
+                x = F.relu(layer(x))
 
-        out = self.final_layer(x)
+        out = self.layers[-1](x)
 
         return out

@@ -17,11 +17,11 @@ import torch
 
 
 # Default constants
-DNN_HIDDEN_UNITS_DEFAULT = '500, 500, 500, 500, 500, 500'
-LEARNING_RATE_DEFAULT = 5e-3
-MAX_STEPS_DEFAULT = 3000
-BATCH_SIZE_DEFAULT = 50
-EVAL_FREQ_DEFAULT = 500
+DNN_HIDDEN_UNITS_DEFAULT = '100'
+LEARNING_RATE_DEFAULT = 2e-3
+MAX_STEPS_DEFAULT = 1500
+BATCH_SIZE_DEFAULT = 200
+EVAL_FREQ_DEFAULT = 100
 
 # Directory in which cifar data is saved
 DATA_DIR_DEFAULT = './cifar10/cifar-10-batches-py'
@@ -94,9 +94,11 @@ def train():
     net = MLP(n_inputs, dnn_hidden_units, n_outputs)
     net.to(device)
 
+    print(net)
+
     # Init optimizer and loss function
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(net.parameters(), lr=LEARNING_RATE_DEFAULT, momentum=0.9)
+    optimizer = optim.SGD(net.parameters(), lr=LEARNING_RATE_DEFAULT)
     running_loss = 0.0
 
     for step in range(MAX_STEPS_DEFAULT):
@@ -129,11 +131,6 @@ def train():
             running_loss = 0.0
 
             net.train()
-
-            # print('Epoch: {}\t Step: {}\t Loss: {}\t Accuracy: {}'
-            #       .format(cifar10['train'].epochs_completed + 1, step + 1,
-            #               running_loss / EVAL_FREQ_DEFAULT, accuracy(outputs, y)))
-            # running_loss = 0.0
 
     print('Finished Training')
 
