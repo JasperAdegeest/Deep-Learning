@@ -20,12 +20,12 @@ class LinearModule(object):
 
         TODO:
         Initialize weights self.params['weight'] using normal distribution with mean = 0 and
-        std = 0.001. Initialize biases self.params['bias'] with 0.
+        std = 0.0001. Initialize biases self.params['bias'] with 0.
 
         Also, initialize gradients with zeros.
         """
 
-        self.params = {'weight': np.random.normal(0, 0.001, (in_features, out_features)),
+        self.params = {'weight': np.random.normal(0, 0.0001, (in_features, out_features)),
                        'bias': np.zeros((out_features,))}
         self.grads = {'weight': np.zeros((in_features, out_features)),
                       'bias': np.zeros((out_features,))}

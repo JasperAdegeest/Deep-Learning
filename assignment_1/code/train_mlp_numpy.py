@@ -79,7 +79,7 @@ def train():
         dnn_hidden_units = []
 
     # Get data and its properties
-    cifar10 = cifar10_utils.get_cifar10(DATA_DIR_DEFAULT)
+    cifar10 = cifar10_utils.get_cifar10(FLAGS.data_dir)
     n_channels, image_width, image_height = cifar10['train'].images[0].shape
     n_inputs = n_channels * image_width * image_height
     n_outputs = len(cifar10['train'].labels[0])
@@ -96,9 +96,9 @@ def train():
     losses = []
     accuracies = []
 
-    for step in range(MAX_STEPS_DEFAULT):
-        x, y = cifar10['train'].next_batch(BATCH_SIZE_DEFAULT)
-        x = x.reshape(BATCH_SIZE_DEFAULT, -1)
+    for step in range(FLAGS.max_steps):
+        x, y = cifar10['train'].next_batch(FLAGS.batch_size)
+        x = x.reshape(FLAGS.batch_size, -1)
 
         outputs = net.forward(x)
         loss = criterion.forward(outputs, y)
@@ -108,11 +108,11 @@ def train():
         # Update weights
         for layer in net.layers:
             if hasattr(layer, 'params'):
-                layer.params['weight'] = layer.params['weight'] - LEARNING_RATE_DEFAULT * layer.grads['weight']
-                layer.params['bias'] = layer.params['bias'] - LEARNING_RATE_DEFAULT * layer.grads['bias']
+                layer.params['weight'] = layer.params['weight'] - FLAGS.learning_rate * layer.grads['weight']
+                layer.params['bias'] = layer.params['bias'] - FLAGS.learning_rate * layer.grads['bias']
 
         running_loss += loss.item()
-        if step % EVAL_FREQ_DEFAULT == EVAL_FREQ_DEFAULT - 1:
+        if step % FLAGS.eval_freq == FLAGS.eval_freq - 1:
             # Calculate accuracy on the test set
             x_test, y_test = cifar10['test'].images, cifar10['test'].labels
             x_test = x_test.reshape(x_test.shape[0], -1)
