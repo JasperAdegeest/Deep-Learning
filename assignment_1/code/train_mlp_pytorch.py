@@ -14,12 +14,13 @@ import cifar10_utils
 import torch.optim as optim
 import torch.nn as nn
 import torch
+import matplotlib.pyplot as plt
 
 
 # Default constants
-DNN_HIDDEN_UNITS_DEFAULT = '100'
-LEARNING_RATE_DEFAULT = 2e-3
-MAX_STEPS_DEFAULT = 1500
+DNN_HIDDEN_UNITS_DEFAULT = '4000, 4000, 4000'
+LEARNING_RATE_DEFAULT = 1e-3
+MAX_STEPS_DEFAULT = 10000
 BATCH_SIZE_DEFAULT = 200
 EVAL_FREQ_DEFAULT = 100
 
@@ -50,13 +51,10 @@ def accuracy(predictions, targets):
     target_classes = torch.max(targets, 1)[1]
 
     if len(prediction_classes) != len(target_classes):
-        raise ValueError('Predictions and targets are not of the same size')
+      raise ValueError('Predictions and targets are not of the same size')
 
-    correct = 0
-    for i, prediction in enumerate(prediction_classes):
-        if prediction == target_classes[i]:
-            correct += 1
-
+    substracted_classes = prediction_classes - target_classes
+    correct = len(prediction_classes) - torch.nonzero(substracted_classes).size(0)
     accuracy = correct / len(prediction_classes)
 
     return accuracy
@@ -72,6 +70,7 @@ def train():
     ### DO NOT CHANGE SEEDS!
     # Set the random seeds for reproducibility
     np.random.seed(42)
+    torch.manual_seed(42)
 
     ## Prepare all functions
     # Get number of units in each hidden layer specified in the string such as 100,100
@@ -85,54 +84,68 @@ def train():
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
     # Get data and its properties
-    cifar10 = cifar10_utils.get_cifar10(DATA_DIR_DEFAULT)
+    cifar10 = cifar10_utils.get_cifar10(FLAGS.data_dir)
     n_channels, image_width, image_height = cifar10['train'].images[0].shape
     n_inputs = n_channels * image_width * image_height
     n_outputs = len(cifar10['train'].labels[0])
 
     # Init MLP
     net = MLP(n_inputs, dnn_hidden_units, n_outputs)
-    net.to(device)
 
     print(net)
 
     # Init optimizer and loss function
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(net.parameters(), lr=LEARNING_RATE_DEFAULT)
+    optimizer = optim.SGD(net.parameters(), lr=FLAGS.learning_rate)
+
+    # Plot variables
+    steps = []
+    losses = []
+    accuracies = []
     running_loss = 0.0
 
-    for step in range(MAX_STEPS_DEFAULT):
-        x, y = cifar10['train'].next_batch(BATCH_SIZE_DEFAULT)
-        x = x.reshape(BATCH_SIZE_DEFAULT, -1)
-        x, y = torch.tensor(x, requires_grad=True), torch.tensor(y, dtype=torch.int64)
-        x, y = x.to(device), y.to(device)
-
+    for step in range(FLAGS.max_steps):
         optimizer.zero_grad()
+
+        x, y = cifar10['train'].next_batch(FLAGS.batch_size)
+        x = x.reshape(FLAGS.batch_size, -1)
+        x, y = torch.tensor(x, requires_grad=True).to(device), torch.tensor(y, dtype=torch.float).to(device)
 
         outputs = net(x)
         labels = torch.max(y, 1)[1]
         loss = criterion(outputs, labels)
+        running_loss += loss
         loss.backward()
         optimizer.step()
 
-        running_loss += loss.item()
-        if step % EVAL_FREQ_DEFAULT == EVAL_FREQ_DEFAULT - 1:
-            net.eval()
-
+        if step % FLAGS.eval_freq == FLAGS.eval_freq - 1:
             # Calculate accuracy on the test set
             x_test, y_test = cifar10['test'].images, cifar10['test'].labels
             x_test = x_test.reshape(x_test.shape[0], -1)
-            x_test, y_test = torch.tensor(x_test), torch.tensor(y_test, dtype=torch.int64)
+            x_test, y_test = torch.tensor(x_test), torch.tensor(y_test, dtype=torch.float)
             test_outputs = net(x_test)
+
+            steps.append(step)
+            losses.append(running_loss / FLAGS.eval_freq)
+            accuracies.append(accuracy(test_outputs, y_test))
 
             print('Epoch: {}\t Step: {}\t Loss: {}\t Test Accuracy: {}'
                   .format(cifar10['train'].epochs_completed + 1, step + 1,
-                          running_loss / EVAL_FREQ_DEFAULT, accuracy(test_outputs, y_test)))
+                          running_loss / FLAGS.eval_freq, accuracies[-1]))
             running_loss = 0.0
 
-            net.train()
-
     print('Finished Training')
+
+    plt.subplot(2, 1, 1)
+    plt.plot(steps, losses, '.-')
+    plt.ylabel('Loss')
+
+    plt.subplot(2, 1, 2)
+    plt.plot(steps, accuracies, '.-')
+    plt.xlabel('Step')
+    plt.ylabel('Accuracy')
+
+    plt.show()
 
 
 def print_flags():

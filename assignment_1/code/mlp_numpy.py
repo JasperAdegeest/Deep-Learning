@@ -38,13 +38,14 @@ class MLP(object):
         prev_n_units = n_inputs
         for n_units in n_hidden:
             if len(self.layers) == 0:
-                self.layers.append(LinearLayer(n_inputs, n_units))
+                self.layers.append(LinearModule(n_inputs, n_units))
             else:
-                self.layers.append(LinearLayer(prev_n_units, n_units))
-
+                self.layers.append(LinearModule(prev_n_units, n_units))
+            self.layers.append(ReLUModule())
             prev_n_units = n_units
 
-        self.layers.append(LinearLayer(prev_n_units, n_classes))
+        self.layers.append(LinearModule(prev_n_units, n_classes))
+        self.layers.append(SoftMaxModule())
 
     def forward(self, x):
         """
@@ -60,15 +61,10 @@ class MLP(object):
         Implement forward pass of the network.
         """
 
-        relu = ReLU()
+        for layer in self.layers:
+            x = layer.forward(x)
 
-        for i, layer in enumerate(self.layers):
-            if i != (len(self.layers) - 1):
-                x = layer.forward(x)
-                x = relu.forward(x)
-
-        out = self.layers[-1].forward(x)
-
+        out = x
         return out
 
     def backward(self, dout):
@@ -82,53 +78,10 @@ class MLP(object):
         Implement backward pass of the network.
         """
 
-        ########################
-        # PUT YOUR CODE HERE  #
-        #######################
-        raise NotImplementedError
-        ########################
-        # END OF YOUR CODE    #
-        #######################
+        for layer in reversed(self.layers):
+            dout = layer.backward(dout)
 
-        return
+        out = dout
 
-
-class LinearLayer:
-    def __init__(self, n_inputs, n_units):
-        self.n_inputs = n_inputs
-        self.n_units = n_units
-
-        # Create weight, bias matrices
-        self.W = np.random.random((n_units, n_inputs))
-        self.b = np.random.random((n_units, 1))
-
-    def forward(self, x):
-        return np.matmul(self.W, x) + self.b
-
-
-class ReLU:
-    def forward(self, x):
-        return x.clip(min=0)
-
-class SoftMax:
-    def forward(self, x):
-        return np.exp(x) / np.sum(np.exp(x), axis=0)
-
-class CrossEntropy:
-    def forward(self, x, t):
-        max_t_index = np.argmax(t, axis=1)
-        x_arg_max = x[max_t_index, range(len(max_t_index))]
-        return -np.log(x_arg_max)
-
-
-net = MLP(2, [3], 3)
-criterion = CrossEntropy()
-
-outputs = net.forward([[-4, 2], [2, 1]])
-labels = [[0, 0, 1], [0, 1, 0]]
-
-loss = criterion.forward(outputs, labels)
-print(loss)
-
-
+        return out
 
