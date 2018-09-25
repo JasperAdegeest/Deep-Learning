@@ -20,6 +20,8 @@ from __future__ import print_function
 
 import torch
 import torch.nn as nn
+from torch.autograd import Variable
+
 
 ################################################################################
 
@@ -27,8 +29,47 @@ class LSTM(nn.Module):
 
     def __init__(self, seq_length, input_dim, num_hidden, num_classes, batch_size, device='cpu'):
         super(LSTM, self).__init__()
-        # Initialization here ...
+
+        self.seq_length = seq_length
+        self.num_hidden = num_hidden
+        self.batch_size = batch_size
+        self.device = device
+
+        self.W_gx = nn.Parameter(torch.FloatTensor(input_dim, num_hidden).normal_(0, 1 / num_hidden))
+        self.W_ix = nn.Parameter(torch.FloatTensor(input_dim, num_hidden).normal_(0, 1 / num_hidden))
+        self.W_fx = nn.Parameter(torch.FloatTensor(input_dim, num_hidden).normal_(0, 1 / num_hidden))
+        self.W_ox = nn.Parameter(torch.FloatTensor(input_dim, num_hidden).normal_(0, 1 / num_hidden))
+
+        self.W_gh = nn.Parameter(torch.FloatTensor(num_hidden, num_hidden).normal_(0, 1 / num_hidden))
+        self.W_ih = nn.Parameter(torch.FloatTensor(num_hidden, num_hidden).normal_(0, 1 / num_hidden))
+        self.W_fh = nn.Parameter(torch.FloatTensor(num_hidden, num_hidden).normal_(0, 1 / num_hidden))
+        self.W_oh = nn.Parameter(torch.FloatTensor(num_hidden, num_hidden).normal_(0, 1 / num_hidden))
+
+        self.b_g = nn.Parameter(torch.zeros(num_hidden, ))
+        self.b_i = nn.Parameter(torch.zeros(num_hidden, ))
+        self.b_f = nn.Parameter(torch.zeros(num_hidden, ))
+        self.b_o = nn.Parameter(torch.zeros(num_hidden, ))
+
+        self.W_hh = nn.Parameter(torch.FloatTensor(num_hidden, num_hidden).normal_(0, 1 / num_hidden))
+        self.b_h = nn.Parameter(torch.zeros(num_hidden, ))
+
+        self.W_ph = nn.Parameter(torch.FloatTensor(num_hidden, num_classes).normal_(0, 0.0001))
+        self.b_p = nn.Parameter(torch.zeros(1, num_classes))
+
 
     def forward(self, x):
-        # Implementation here ...
-        pass
+        h = Variable(torch.zeros(self.batch_size, self.num_hidden, ))
+        c = Variable(torch.zeros(self.batch_size, self.num_hidden, ))
+
+        for j in range(self.seq_length):
+            g = torch.mm(x[:, j].unsqueeze(1), self.W_gx) + torch.mm(h, self.W_gh) + self.b_g
+            i = torch.mm(x[:, j].unsqueeze(1), self.W_ix) + torch.mm(h, self.W_ih) + self.b_i
+            f = torch.mm(x[:, j].unsqueeze(1), self.W_fx) + torch.mm(h, self.W_fh) + self.b_f
+            o = torch.mm(x[:, j].unsqueeze(1), self.W_ox) + torch.mm(h, self.W_oh) + self.b_o
+
+            c = g * i + c * f
+
+            h = torch.tanh(c) + o
+            p = torch.mm(h, self.W_ph) + self.b_p
+
+        return p
