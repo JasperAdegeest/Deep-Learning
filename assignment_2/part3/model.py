@@ -20,6 +20,7 @@ from __future__ import print_function
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
+import numpy as np
 
 
 class TextGenerationModel(nn.Module):
@@ -34,7 +35,7 @@ class TextGenerationModel(nn.Module):
         self.batch_size = batch_size
         self.device = device
 
-        self.lstm = nn.LSTM(1, lstm_num_hidden, lstm_num_layers, dropout=dropout)
+        self.lstm = nn.LSTM(vocabulary_size, lstm_num_hidden, lstm_num_layers, dropout=dropout)
 
         self.fc = nn.Linear(lstm_num_hidden, vocabulary_size)
 

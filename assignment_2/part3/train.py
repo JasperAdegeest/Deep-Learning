@@ -61,7 +61,7 @@ def train(config):
     # Setup the loss and optimizer
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.RMSprop(model.parameters(), lr=config.learning_rate)
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, verbose=True, factor=0.1, patience=10)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, verbose=True, factor=0.1, patience=1)
 
     nr_of_epochs = round(config.train_steps / len(data_loader))
 
@@ -69,8 +69,8 @@ def train(config):
         epoch_loss = 0
         for step, (batch_inputs, batch_targets) in enumerate(data_loader):
             batch_inputs = torch.stack(batch_inputs)
+            batch_inputs = one_hot(batch_inputs, dataset.vocab_size)
             batch_size = batch_inputs.shape[1]
-            batch_inputs = batch_inputs.view(config.seq_length, batch_size, 1)
 
             batch_inputs = batch_inputs.type(torch.float)
             batch_targets = torch.stack(batch_targets).to(device)
@@ -129,20 +129,23 @@ def train(config):
                     h0 = Variable(torch.zeros(config.lstm_num_layers, 1, config.lstm_num_hidden).to(device))
                     c0 = Variable(torch.zeros(config.lstm_num_layers, 1, config.lstm_num_hidden).to(device))
                     for i in range(config.seq_length):
-                        input_batch = torch.stack([torch.tensor([next_char], dtype=torch.float)])
-                        input_batch = input_batch.view(1, 1, 1)
+                        input_batch = torch.stack([torch.tensor([next_char], dtype=torch.int64)])
+                        input_batch = one_hot(input_batch, dataset.vocab_size)
                         input_batch = input_batch.to(device)
 
                         output, h0, c0 = model(input_batch, h0, c0)
                         output = F.softmax(output[-1, :, :]).detach().cpu().numpy()
                         output = output[0]
-                        output = (np.log(output) / config.temperature)
+                        output = np.log(output) / config.temperature
                         output = np.exp(output) / np.sum(np.exp(output))
-                        next_char = np.argmax(np.random.multinomial(1, output, 1))
+                        choices = range(len(output))
+                        next_char = np.random.choice(choices, p=output)
+                        # next_char = np.argmax(output)
                         sentence.append(next_char)
 
                     char_sentence = dataset.convert_to_string(sentence)
                     summary_file.write(''.join(char_sentence) + '\n')
+
                 summary_file.close()
 
                 model.train()
@@ -159,6 +162,12 @@ def train(config):
 
     print('Done training.')
 
+def one_hot(batch, voc_size):
+    inp_ = torch.unsqueeze(batch, 2)
+    onehot = torch.zeros((batch.shape[0], batch.shape[1], voc_size))
+    onehot.scatter_(2, inp_, 1)
+    return onehot
+
 
  ################################################################################
  ################################################################################
@@ -173,14 +182,13 @@ if __name__ == "__main__":
     parser.add_argument('--save_file', type=str, default='model.pt', help="Path to a .txt file to train on")
     parser.add_argument('--temperature', type=float, default=1.0)
 
-
     parser.add_argument('--seq_length', type=int, default=30, help='Length of an input sequence')
     parser.add_argument('--lstm_num_hidden', type=int, default=128, help='Number of hidden units in the LSTM')
     parser.add_argument('--lstm_num_layers', type=int, default=2, help='Number of LSTM layers in the model')
 
     # Training params
     parser.add_argument('--batch_size', type=int, default=64, help='Number of examples to process in a batch')
-    parser.add_argument('--learning_rate', type=float, default=1e-2, help='Learning rate')
+    parser.add_argument('--learning_rate', type=float, default=2e-3, help='Learning rate')
 
     # It is not necessary to implement the following three params, but it may help training.
     parser.add_argument('--learning_rate_decay', type=float, default=0.96, help='Learning rate decay fraction')
@@ -192,8 +200,8 @@ if __name__ == "__main__":
 
     # Misc params
     parser.add_argument('--summary_path', type=str, default="./summaries/", help='Output path for summaries')
-    parser.add_argument('--print_every', type=int, default=20, help='How often to print training progress')
-    parser.add_argument('--sample_every', type=int, default=20, help='How often to sample from the model')
+    parser.add_argument('--print_every', type=int, default=200, help='How often to print training progress')
+    parser.add_argument('--sample_every', type=int, default=500, help='How often to sample from the model')
 
     parser.add_argument('--device', type=str, default="cpu", help="Training device 'cpu' or 'cuda:0'")
 
